@@ -494,7 +494,7 @@ class AIS:
             running = len(self._active[chatid].keys())
             if once or running > 1:
                 for response in doneQueue([
-                    (ai, AsyncTask(self._exec, (self._active[chatid][ai], task, chat_context, False)))
+                    (ai, AsyncTask(self._exec, (self._active[chatid][ai], task, chat_context, True)))
                     for ai in self._active[chatid]
                 ]):
                     yield (*response, True)
@@ -802,20 +802,21 @@ class BingConversation:
     def __init__(self, cookie):
         global errors
         try:
-            self.client = httpx.Client(
-                proxies=proxies, 
-                timeout=30, 
-                headers=BingRequestHeader, 
-                transport=httpx.HTTPTransport(retries=3), 
-            )
-            for c in json.loads(read_file(cookie)):
-                self.client.cookies.set(c['name'], c['value'])
+            self.cookie = json.loads(read_file(cookie))
             self.request = None
             self.reset()
         except Exception as e:
             errors += f'- conversation create failed -\n{errString(e)}'
 
     def reset(self):
+        self.client = httpx.Client(
+            proxies=proxies, 
+            timeout=30, 
+            headers=BingRequestHeader, 
+            transport=httpx.HTTPTransport(retries=3), 
+        )
+        for c in self.cookie:
+            self.client.cookies.set(c['name'], c['value'])
         response = self.client.get('https://edgeservices.bing.com/edgesvc/turing/conversation/create')
         if response.status_code != 200:
             errors += f'- Authentication failed -\nStatus code: {response.status_code}\n{response.text}'
