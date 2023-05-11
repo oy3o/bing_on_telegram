@@ -175,7 +175,7 @@ class AsyncTask(Task):
 
     def threading(self):
         def task():
-            asyncio.run(task.do())
+            asyncio.run(self.do())
 
         return threading.Thread(target=task)
 
@@ -1270,7 +1270,7 @@ async def async_main(args: argparse.Namespace):
 
     print(time.ctime(), 'AIs running on telegram bot...')
     await app.initialize()
-    await AsyncTask(app.run_polling).retry(stop=lambda: Running, onException=log)
+    await AsyncTask(app.run_polling).retry(stop=lambda: not Running, onException=log)
 
 # endregion
 ##########################################################################################################################
