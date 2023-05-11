@@ -1,3 +1,4 @@
+workspace = '/home/bot/'
 admin = 594871989
 admin_name = 'admin'
 bot_id = 0
