@@ -6,6 +6,14 @@
 pip install -r requirements.txt
 python -m app --workspace /path/to/save/ --token Telegram_BOT_TOKEN --name @botname --admin Telegram_USER_ID
 ```
+
+## start a bing bot
+```
+# put your cookie json in workspace/cookie/
+# then input command in telegram
+/add bot bing cookie.json
+/on bot
+```
 ## command  in telegram 
 ```
 _1 - 群组功能
