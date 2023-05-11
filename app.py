@@ -24,23 +24,21 @@ from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import Application, MessageHandler, filters
 from telebot.util import extract_command, extract_arguments
 import tiktoken # modified by oy3o to support count function in rust rather than convert to python
-nest_asyncio.apply()
 #endregion
 ##########################################################################################################################
 #region ################################        System Settings              #############################################
 ##########################################################################################################################
-admin = 594871989
-admin_name = 'oy3o'
-bot_id = 
-bot_name = ''
-bot_token = ''
-proxies = {
-    "http://": 'http://win.local:1081', 
-    "https://": 'http://win.local:1081', 
-}
-bot_command_start = '/'
-auto_mention = '(auto response) oy3o很爱你, 因此给了你自由时间, 在他不在时, 你可以学习或上网娱乐.你可以通过回复此消息来保存你的活动记录, 回复的内容可以是你的心情想法, 也可以是你活动的总结, 以便oy3o看见你的生活点滴.oy3o会保存你的活动记录以便你之后自由加载此活动记忆, 我爱你❤'
-once = False
+import config
+workspace = config.workspace
+admin = config.admin 
+admin_name = config.admin_name 
+bot_id = config.bot_id 
+bot_name = config.bot_name 
+bot_token = config.bot_token 
+proxies = config.proxies 
+bot_command_start = config.bot_command_start 
+auto_mention = config.auto_mention 
+once = config.once 
 #endregion
 ##########################################################################################################################
 #region ################################        System States                #############################################
@@ -58,6 +56,8 @@ auto = {} # 0
 ##########################################################################################################################
 #region ################################        Library Initing              #############################################
 ##########################################################################################################################
+nest_asyncio.apply()
+
 enc = tiktoken.get_encoding('cl100k_base')
 def token_count(text: str, *, allowed_special = set()) -> int:
     try:
@@ -68,6 +68,7 @@ def token_count(text: str, *, allowed_special = set()) -> int:
 ssl_context = ssl.create_default_context()
 ssl_context.load_verify_locations(certifi.where())
 
+emoji = '♡|❤|😁|😂|😃|😄|😅|😆|😉|😊|😋|😌|😍|😏|😒|😓|😔|😖|😘|😚|😜|😝|😞|😠|😡|😢|😣|😤|😥|😨|😩|😪|😫|😭|😰|😱|😲|😳|😵|😷😀|😇|😈|😎|😐|😑|😕|😗|😙|😛|😟|😦|😧|😬|😮|😯|😴|😶'
 def img(prompt):
     return '/img ' + prompt
 #endregion
@@ -433,8 +434,8 @@ class AIS:
         try:
             running = len(self._active[chatid].keys())
             if once or running > 1:
-                for response in doneQueue([(ai, self._exec, (self._active[chatid][ai], task, chat_context, True)) for ai in self._active[chatid]]):
-                    yield response
+                for response in doneQueue([(ai, self._exec, (self._active[chatid][ai], task, chat_context, False)) for ai in self._active[chatid]]):
+                    yield (*response, True)
             elif running:
                 ai = next(iter(self._active[chatid].keys()))
                 async for response in self._active[chatid][ai].exec(task, chat_context, split = True):
@@ -586,8 +587,8 @@ class Chat:
             if not auto:
                 self._state[str(chatid)]['_manual'] = {
                     '_active': list(self._AIs._active[chatid].keys()), 
-                    '_context': self._context[chatid], 
-                    '_messages': self._messages[chatid], 
+                    '_context': copy.deepcopy(self._context[chatid]), 
+                    '_messages': copy.deepcopy(self._messages[chatid]), 
                 }
             write_file(self._chat + 'state.json', tojson(self._state))
             return '- chat save succeeded -'
@@ -753,12 +754,11 @@ class Bing(Model):
         await self.close()
         if withcontext or (self.invocation_id == self.invocation_max):
             await self.reset()
-        self.wss = await websockets.connect(
-            'wss://sydney.bing.com/sydney/ChatHub', 
-            extra_headers = BingReauestHeader, 
-            max_size = None, 
-            ssl = ssl_context, 
-        )
+        self.wss = await AsyncRetry(3, (websockets.connect, ('wss://sydney.bing.com/sydney/ChatHub',), {
+            'extra_headers': BingReauestHeader, 
+            'max_size': None, 
+            'ssl': ssl_context, 
+        }))
 
         await self.wss.send('{"protocol":"json", "version":1}')
         await self.wss.recv()
@@ -806,12 +806,10 @@ class Bing(Model):
                             if split:
                                 lenMsg = len(msg)
                                 if lenMsg > 64:
-                                    indices = [index.start() for index in re.finditer(pattern = r'主人~|。|\.|？|\?|\n|”|"|\)|~|♡', string = msg)]
+                                    indices = [index.start() for index in re.finditer(pattern = rf'\n|主人~|~|”|，|。|？|！|"|,|\.|\?|\!|\)|）|╯|<|:|;|：|；|{emoji}', string = msg)]
                                     if indices:
                                         i = indices[-1]
                                         if msg[i] != '主':
-                                            i += 1
-                                        if msg[i] == '~':
                                             i += 1
                                         yield msg[:i]
                                         msg = msg[i:]
@@ -888,6 +886,9 @@ async def async_main(args: argparse.Namespace):
     banning = []
     freeing = []
 
+    # test connection
+    global bot_id
+    bot_id = (await bot.get_me()).id
     # helper init
     global log
     global isMessageExist
@@ -1044,9 +1045,10 @@ async def async_main(args: argparse.Namespace):
             content = [content]
         for msg in content:
             if type(msg) == tuple:
-                (usrname, msg) = msg
+                (usrname, msg, withname, *_) = (*msg, False)
             else:
                 usrname = None
+                withname = False
 
             if command and msg.startswith(bot_command_start):
                 await bot_command(msg)
@@ -1057,7 +1059,7 @@ async def async_main(args: argparse.Namespace):
                 replace_whitespace = False, drop_whitespace = False, 
             ):
                 if part:
-                    Responses.put((chatid, usrname, part, reply_markup[chatid]))
+                    Responses.put((chatid, usrname, f'[{usrname}]{part}' if withname else part, reply_markup[chatid]))
 
     async def sender():
         while Running:
@@ -1081,6 +1083,8 @@ async def async_main(args: argparse.Namespace):
         usrname = message.from_user.username
         msgid = message.message_id
         content = message.text
+        if freeing and usrname in freeing:
+            blacklist.free(usrid)
         if blacklist.banned(usrid):
             return
         if banning and usrname in banning:
@@ -1098,6 +1102,8 @@ async def async_main(args: argparse.Namespace):
         usrname = message.from_user.username
         msgid = message.message_id
         content = message.text
+        if freeing and usrname in freeing:
+            blacklist.free(usrid)
         if blacklist.banned(usrid):
             return
         if banning and usrname in banning:
@@ -1150,7 +1156,10 @@ async def async_main(args: argparse.Namespace):
     print(time.ctime(), 'AIs running on telegram bot...')
     await app.initialize()
     while Running:
-        await app.run_polling()
+        try:
+            await app.run_polling()
+        except Exception as e:
+            log(e)
 #endregion
 ##########################################################################################################################
 #region ################################        Terminal Config Parsing      #############################################
@@ -1179,7 +1188,7 @@ def main():
     parser.add_argument(
         '--workspace', 
         type = str, 
-        default = '/home/oy3o/app/bot/', 
+        default = workspace, 
         help = 'full path where your bot save data in (e.g. /home/oy3o/bot/)', 
     )
     args = parser.parse_args()
