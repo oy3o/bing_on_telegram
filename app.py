@@ -685,15 +685,13 @@ class Chat:
                 '_context': self._context[chatid], 
                 '_messages': self._messages[chatid], 
                 '_prelen': self._prelen[chatid],
-                '_manual': self._state[str(chatid)].get('_manual'),
             }
-            if not auto:
-                self._state[str(chatid)]['_manual'] = {
-                    '_active': list(self._AIs._active[chatid].keys()), 
-                    '_context': copy.deepcopy(self._context[chatid]), 
-                    '_messages': copy.deepcopy(self._messages[chatid]),
-                    '_prelen': self._prelen[chatid],
-                }
+            self._state[str(chatid)]['_manual'] = self._state[str(chatid)].get('_manual') if auto else {
+                '_active': list(self._AIs._active[chatid].keys()), 
+                '_context': copy.deepcopy(self._context[chatid]), 
+                '_messages': copy.deepcopy(self._messages[chatid]),
+                '_prelen': self._prelen[chatid],
+            }
             write_file(self._chat + 'state.json', tojson(self._state))
             return '- chat save succeeded -'
         except Exception as e:
