@@ -837,6 +837,7 @@ class BingConversation:
             errors += f'- conversation create failed -\n{errString(e)}'
 
     def reset(self):
+        global errors
         self.client = httpx.Client(
             proxies=proxies, 
             timeout=30, 
