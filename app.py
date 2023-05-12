@@ -509,9 +509,9 @@ class AIS:
                 for response in doneQueue([
                     (ai, AsyncTask(self._exec, (
                         self._active[chatid][ai], 
-                        (self._active[chatid][ai].parse_chat(turn_chat) + task) 
+                        task
                             if withcontext 
-                            else task,
+                            else (self._active[chatid][ai].parse_chat(turn_chat) + task),
                         history_chat,
                         withcontext,
                     ))) for ai in self._active[chatid]
