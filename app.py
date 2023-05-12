@@ -68,7 +68,7 @@ def token_count(text: str, *, allowed_special=set()) -> int:
     try:
         return enc._core_bpe.count(text, allowed_special)
     except:
-        return len(enc._core_bpe.encode(text))
+        return len(enc._core_bpe.encode(text, allowed_special))
 
 ssl_context = ssl.create_default_context()
 ssl_context.load_verify_locations(certifi.where())
