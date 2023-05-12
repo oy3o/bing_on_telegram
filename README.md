@@ -19,6 +19,7 @@ python -m app --workspace /path/to/save/ --token Telegram_BOT_TOKEN --name @botn
 _1 - 群组功能
 start - 在此开始监听 /start
 reset - 重置群组上下文 /reset
+mode - 多 AI 会话方式 /mode [forward|withcontext]
 ban - 用户禁用机器人 /ban username
 free - 用户解除禁用 /free username
 img - 生成图片 /img prompt
@@ -43,16 +44,17 @@ chatadd - 添加会话 /chatadd name description [context=this]
 chatmod - 修改会话 /chatmod name description [context=this]
 chatdel - 删除会话 /chatdel chat_name
 chatset - 选中会话 /chatset chat_name
+chatfix - 修正会话  /chatfix  [context=this] #default is apply tg delete action
 _5 - 角色列表
 role - 显示角色prompt /role [name=this]
-rolelst - 显示角色列表 /rolelst
+rolelst - 显示列表 /rolelst
 roleset - 选中角色 /roleset [c1 c2 c3 = None]
 roleadd - 添加角色 /roleadd name description prompt
 roledel - 移除角色 /roledel name
 rolemod - 修改角色 /rolemod name [description [prompt]]
 _6 - 记忆列表
 mem - 显示记忆prompt /mem [name=this]
-memlst - 显示记忆列表 /memlst
+memlst - 显示列表 /memlst
 memset - 选中记忆 /memset [c1 c2 c3 = None]
 memadd - 添加记忆 /memadd name description prompt
 memdel - 移除记忆 /memdel name

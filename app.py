@@ -2,7 +2,7 @@
 # region ################################        Import Dependencies          #############################################
 ##########################################################################################################################
 from __future__ import annotations
-from typing import List, Tuple, TypedDict
+from typing import List, Tuple
 import argparse
 import asyncio
 import certifi
@@ -47,6 +47,7 @@ once = config.once
 # region ################################        System States                #############################################
 ##########################################################################################################################
 Running = True
+withcontext = False
 errors = ''
 executors = {}
 Tasks = {}  # queue.Queue()
@@ -130,6 +131,18 @@ def split_first(args_text, spliter):
         return (args_text[:i], args_text[i:].strip())
     except:
         return (args_text, '')
+
+def split_message(msg):
+    if len(msg) > 64:
+        indices = [index.start() for index in re.finditer(pattern=rf'\n|主人~|”|。|？|！|"|\.|\?|\!|:|;|：|；', string=msg)]
+        if not indices:
+            indices = [index.start() for index in re.finditer(pattern=rf'~|，|,|\)|）|╯|<|{emoji}', string=msg)]
+        if indices:
+            i = indices[-1]
+            if msg[i] != '主':
+                i += 1
+            return (msg[:i], msg[i:])
+    return (None, msg)
 
 class Task:
     def __init__(self, func, args=(), kwargs={}):
@@ -339,7 +352,7 @@ class Model:
         self.conversation = None
         self.wss = None
 
-    async def exec(task, chat_context, *, withcontext=False, split=False):
+    async def exec(task, history_chat, *, withcontext=False, split=False):
         pass
 
     async def close(self):
@@ -480,27 +493,33 @@ class AIS:
         except Exception as e:
             return f'- AI modify failed -\n{errString(e)}'
 
-    async def _exec(self, ai: Model, task, chat_context, withcontext):
+    async def _exec(self, ai: Model, task, history_chat, withcontext):
         response = ''
-        async for chunk in ai.exec(task, chat_context, withcontext=withcontext, split=False):
+        async for chunk in ai.exec(task, history_chat, withcontext=withcontext, split=False):
             if chunk:
                 response += chunk + '\n'
         return response
 
-    async def exec(self, chatid, task, chat_context):
+    async def exec(self, chatid, task, history_chat, turn_chat):
         if not self._active.get(chatid):
             self._active[chatid] = {}
         try:
             running = len(self._active[chatid].keys())
             if once or running > 1:
                 for response in doneQueue([
-                    (ai, AsyncTask(self._exec, (self._active[chatid][ai], task, chat_context, True)))
-                    for ai in self._active[chatid]
+                    (ai, AsyncTask(self._exec, (
+                        self._active[chatid][ai], 
+                        (self._active[chatid][ai].parse_chat(turn_chat) + task) 
+                            if withcontext 
+                            else task,
+                        history_chat,
+                        withcontext,
+                    ))) for ai in self._active[chatid]
                 ]):
                     yield (*response, True)
             elif running:
                 ai = next(iter(self._active[chatid].keys()))
-                async for response in self._active[chatid][ai].exec(task, chat_context, split=True):
+                async for response in self._active[chatid][ai].exec(task, history_chat, split=True):
                     if response:
                         yield (ai, response)
             else:
@@ -518,6 +537,7 @@ class Chat:
         self._active = {}
         self._context = {}
         self._messages = {}
+        self._prelen = {}
 
     def list(self, chatid, update):
         try:
@@ -628,6 +648,11 @@ class Chat:
 
     def real_chat(self, chatid):
         return self._messages[chatid]
+    
+    def turn_chat(self, chatid):
+        prelen = self._prelen.get(chatid) or 0
+        self._prelen[chatid] = len(self._messages[chatid])
+        return self._messages[chatid][prelen:]
 
     async def exist_chat(self, chatid):
         return [
@@ -638,7 +663,7 @@ class Chat:
     async def send(self, task):
         (chatid, *_) = task
         self.append(task)
-        async for response in self._AIs.exec(chatid, task, self._context[chatid] + self.real_chat(chatid)):
+        async for response in self._AIs.exec(chatid, task, self._context[chatid] + self.real_chat(chatid), self.turn_chat(chatid)):
             yield response
         self.save(chatid, auto=True)
 
@@ -659,6 +684,7 @@ class Chat:
                 '_active': list(self._AIs._active[chatid].keys()), 
                 '_context': self._context[chatid], 
                 '_messages': self._messages[chatid], 
+                '_prelen': self._prelen[chatid],
                 '_manual': self._state[str(chatid)].get('_manual'),
             }
             if not auto:
@@ -666,6 +692,7 @@ class Chat:
                     '_active': list(self._AIs._active[chatid].keys()), 
                     '_context': copy.deepcopy(self._context[chatid]), 
                     '_messages': copy.deepcopy(self._messages[chatid]),
+                    '_prelen': self._prelen[chatid],
                 }
             write_file(self._chat + 'state.json', tojson(self._state))
             return '- chat save succeeded -'
@@ -683,6 +710,7 @@ class Chat:
             self._AIs.on(chatid, ' '.join(state['_active']))
             self._context[chatid] = state['_context']
             self._messages[chatid] = state['_messages']
+            self._prelen[chatid] = state['_prelen']
             return '- restore chat from state -'
         except Exception as e:
             return f'- chat restore failed -\n{errString(e)}'
@@ -837,7 +865,7 @@ class Bing(Model):
         self.invocation_max = 0
         self.invocation_id = 0
 
-    async def exec(self, task, chat_history, *, withcontext=False, split=False):
+    async def exec(self, task, history_chat, *, withcontext=False, split=False):
         await self.close()
         if withcontext or (self.invocation_id == self.invocation_max):
             await self.reset()
@@ -854,7 +882,7 @@ class Bing(Model):
         await self.wss.send('{"protocol":"json", "version":1}\x1e')
         await self.wss.recv()
 
-        chat_context = self.parse_chat(chat_history)
+        chat_context = self.parse_chat(history_chat)
         (chatid, usrid, usrname, msgid, msg) = task
         await self.wss.send(self.conversation.request.message(
             self.parse_message(usrid, usrname, msg), 
@@ -898,19 +926,8 @@ class Bing(Model):
                             msg += chunk[len(last) :]
                             last = chunk
                             if split:
-                                lenMsg = len(msg)
-                                if lenMsg > 64:
-                                    indices = [
-                                        index.start()
-                                        for index in re.finditer(
-                                            pattern=rf'\n|主人~|~|”|，|。|？|！|"|, |\.|\?|\!|\)|）|╯|<|:|;|：|；|{emoji}', string=msg)
-                                    ]
-                                    if indices:
-                                        i = indices[-1]
-                                        if msg[i] != '主':
-                                            i += 1
-                                        yield msg[:i]
-                                        msg = msg[i:]
+                                (willyield, msg) = split_message(msg)
+                                yield willyield
                         else:
                             yield msg
                             msg = last = chunk
@@ -1053,6 +1070,13 @@ async def async_main(args: argparse.Namespace):
         mem.set([])
         chat.start(chatid)
         return '- bot reset succeeded -'
+    
+    def mode(chatid, type = 'forward'):
+        if type == 'withcontext':
+            global withcontext
+            withcontext = True
+        else:
+            withcontext = False
 
     def ban(usrname: str):
         if not usrname:
@@ -1075,6 +1099,7 @@ async def async_main(args: argparse.Namespace):
         exec = {
             'start': lambda _: start(chatid), 
             'reset': lambda _: reset(chatid), 
+            'mode': lambda args: mode(chatid, args),
             'ban': ban, 
             'free': free, 
             'img': img, 
