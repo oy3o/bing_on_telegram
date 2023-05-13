@@ -1,11 +1,17 @@
-# bing_on_telegram
-通过tg来访问AI接口，因为AI模型有token限制，本项目提供个性化的会话保存功能
+# New Bing & Bard on Telegram with chat save
+Access different AI through telegram. Since the model has token restrictions, the purpose of this project is to let AI remember more important memories, and provide the ability to play roles and save sessions.
+
+At present, it is possible to realize simultaneous conversations between different AIs in the same chat window, more intelligent information segmentation, perfect error prompts and search display.
+
+If you want to use a bot from another platform instead of the telegram bot, you can implement it by modifying less than 50 lines of code under the Bot Initing block.
 
 ## run app
 ```
 pip install -r requirements.txt
 python -m app --workspace /path/to/save/ --token Telegram_BOT_TOKEN --name @botname --admin Telegram_USER_ID
 ```
+- you can edit `config.py`, then run `python -m app` without arguments.
+- you can also config your proxy in `config.py`
 
 ## start a bing bot
 ```
