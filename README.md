@@ -1,4 +1,6 @@
 # New Bing & Bard on Telegram with chat save
+*[简体中文](README.zh.md)*
+
 Access different AI through telegram. Since the model has token restrictions, the purpose of this project is to let AI remember more important memories, and provide the ability to play roles and save sessions.
 
 At present, it is possible to realize simultaneous conversations between different AIs in the same chat window, more intelligent information segmentation, perfect error prompts and search display.
@@ -20,6 +22,8 @@ python -m app --workspace /path/to/save/ --token Telegram_BOT_TOKEN --name @botn
 /add bot bing cookie.json
 /on bot
 ```
+**You can start multiple AIs, even the same model with the same cookie**
+**It can be used in group chat, it needs to be set as an administrator, the name set by the prefix such as `@bot_name` can be responded, the administrator does not need**
 
 ## run bing with a roleplay
 ```
@@ -34,6 +38,9 @@ python -m app --workspace /path/to/save/ --token Telegram_BOT_TOKEN --name @botn
 # turn on ai
 /on ai_name
 ```
+**If there are many characters and memories, it is recommended to use number naming**
+**You can achieve a personalized experience by combining different characters and memories**
+**For example, the character can be student+sister+magic girl, and the memory can be historical+knowledge+what you have done**
 
 ## save and restore a chat
 ```
@@ -43,13 +50,16 @@ python -m app --workspace /path/to/save/ --token Telegram_BOT_TOKEN --name @botn
 /chatset chat_name
 # or you can save temp
 /save
-# then restore from temp
-/restore
+# then restore from temp (This is for restarting the application settings. Generally, it will not be used.
+# If there is an unexpected termination, it can be restored by /restore auto, because there is automatic saving)
+/restore 
 ```
+**In fact, you can open multiple chat channels to conduct multiple topics instead of just saving to the list**
+**The session will record the current AI enabled status and session context**
 
 ## command  in telegram 
 ```
-_1 - 群组功能
+_1 - group function
 start - start listening here /start
 reset - reset the group context /reset
 mode - multi AI forward mode /mode [forward|withcontext]
@@ -64,7 +74,7 @@ set - set active AI /set [bot1 bot2 bot3 = None]
 add - add AI /add name model cookie
 remove - remove AI /remove name
 mod - modify AI /mod name [model [cookie]]
-_3 - session functionality (autosave)
+_3 - session function (autosave)
 save - save the context /save
 restore - restore context /restore [auto=False]
 warn - display model prompts for errors /warn
