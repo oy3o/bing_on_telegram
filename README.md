@@ -1,5 +1,5 @@
 # New Bing & Bard on Telegram with chat save
-*[简体中文](README.zh.md)*
+*[简体中文](README-zh.md)*
 
 Access different AI through telegram. Since the model has token restrictions, the purpose of this project is to let AI remember more important memories, and provide the ability to play roles and save sessions.
 
