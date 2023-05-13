@@ -7,6 +7,7 @@ At present, it is possible to realize simultaneous conversations between differe
 
 If you want to use a bot from another platform instead of the telegram bot, you can implement it by modifying less than 50 lines of code under the Bot Initing block.
 
+
 ## run app
 ```
 pip install -r requirements.txt
@@ -14,6 +15,7 @@ python -m app --workspace /path/to/save/ --token Telegram_BOT_TOKEN --name @botn
 ```
 - you can edit `config.py`, then run `python -m app` without arguments.
 - you can also config your proxy in `config.py`
+
 
 ## start a bing bot
 ```
@@ -23,7 +25,9 @@ python -m app --workspace /path/to/save/ --token Telegram_BOT_TOKEN --name @botn
 /on bot
 ```
 **You can start multiple AIs, even the same model with the same cookie**
+
 **It can be used in group chat, it needs to be set as an administrator, the name set by the prefix such as `@bot_name` can be responded, the administrator does not need**
+
 
 ## run bing with a roleplay
 ```
@@ -39,8 +43,11 @@ python -m app --workspace /path/to/save/ --token Telegram_BOT_TOKEN --name @botn
 /on ai_name
 ```
 **If there are many characters and memories, it is recommended to use number naming**
+
 **You can achieve a personalized experience by combining different characters and memories**
+
 **For example, the character can be student+sister+magic girl, and the memory can be historical+knowledge+what you have done**
+
 
 ## save and restore a chat
 ```
@@ -55,7 +62,9 @@ python -m app --workspace /path/to/save/ --token Telegram_BOT_TOKEN --name @botn
 /restore 
 ```
 **In fact, you can open multiple chat channels to conduct multiple topics instead of just saving to the list**
+
 **The session will record the current AI enabled status and session context**
+
 
 ## command  in telegram 
 ```
@@ -103,6 +112,8 @@ memadd - add memory /memadd name description prompt
 memdel - remove memory /memdel name
 memmod - modify memory /memmod name [description [prompt]]
 ```
+
+
 ## build token count function (x86_64 linux version)
 ```bash
 python -m pip install pyo3

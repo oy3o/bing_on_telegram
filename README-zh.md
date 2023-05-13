@@ -20,7 +20,9 @@ python -m app --workspace /path/to/save/ --token Telegram_BOT_TOKEN --name @botn
 /on 设定名字
 ```
 **你可以启动多个AI，即使是同一个cookie同一个模型**
+
 **可以在群聊中使用，需要设为管理员，通过前缀设定的名字如`@bot_name`可以被响应，管理员不需要**
+
 
 ## 运行一个角色扮演的机器人
 ```
@@ -36,8 +38,11 @@ python -m app --workspace /path/to/save/ --token Telegram_BOT_TOKEN --name @botn
 /on 机器人名称
 ```
 **如果角色和记忆很多，推荐使用编号命名**
+
 **你可以通过组合不同的角色和记忆达到个性化的体验**
+
 **如角色可以是 学生+妹妹+魔法少女，记忆可以是 历史设定+相关知识+你们做了什么**
+
 
 ## save and restore a chat
 ```
@@ -51,7 +56,9 @@ python -m app --workspace /path/to/save/ --token Telegram_BOT_TOKEN --name @botn
 /restore
 ```
 **事实上可以通过开启多个聊天频道来进行多个话题而不只是保存到列表**
+
 **会话会记录当前的 AI 开启状况和会话上下文**
+
 
 ## command  in telegram 
 ```
@@ -99,6 +106,8 @@ memadd - add memory /memadd name description prompt
 memdel - remove memory /memdel name
 memmod - modify memory /memmod name [description [prompt]]
 ```
+
+
 ## 计算 token 的函数 count 需要手动编译，可以不编译，但是计数是在 python 进行，而不是 rust 会比较慢 (x86_64 linux version)
 ```bash
 python -m pip install pyo3
