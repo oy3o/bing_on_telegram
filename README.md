@@ -20,51 +20,78 @@ python -m app --workspace /path/to/save/ --token Telegram_BOT_TOKEN --name @botn
 /add bot bing cookie.json
 /on bot
 ```
+
+## run bing with a roleplay
+```
+# command in telegram
+/roleadd role_name role_description role_prompt
+/memadd memory_name(always a number) memory_description memory_prompt
+# select both role and memory
+/roleset role_name1 role_name2 role_name3
+/memset 0 1 2 3 4
+# add a ai that you can turn on it anytime anywhere
+/add ai_name bing cookie_file_name
+# turn on ai
+/on ai_name
+```
+
+## save and restore a chat
+```
+# save current to list
+/chatadd chat_name chat_description
+# then restore from list
+/chatset chat_name
+# or you can save temp
+/save
+# then restore from temp
+/restore
+```
+
 ## command  in telegram 
 ```
 _1 - 群组功能
-start - 在此开始监听 /start
-reset - 重置群组上下文 /reset
-mode - 多 AI 会话方式 /mode [forward|withcontext]
-ban - 用户禁用机器人 /ban username
-free - 用户解除禁用 /free username
-img - 生成图片 /img prompt
-_2 - AI 列表（添加需选中角色和记忆）
-list - 显示 AI 列表 /list
-on - 启动 AI /on [bot1 bot2 bot3 = *]
-off - 关闭 AI /off [bot1 bot2 bot3 = *]
-set - 设置活跃 AI /set [bot1 bot2 bot3 = None]
-add - 添加 AI /add name model cookie
-remove - 移除 AI /remove name
-mod - 修改AI /mod name [model [cookie]]
-_3 - 会话功能（自动保存）
-save - 保存上下文 /save
-restore - 恢复上下文 /restore [auto=False]
-warn - 显示模型提示错误 /warn
-search - 显示过滤搜索结果 /search [query='']
-auto - 机器人自动运行 /auto [times=5]
-_4 - 会话列表
-chat - 显示会话内容 /chat [name=this]
-chatlst - 显示列表 /chatlst
-chatadd - 添加会话 /chatadd name description [context=this]
-chatmod - 修改会话 /chatmod name description [context=this]
-chatdel - 删除会话 /chatdel chat_name
-chatset - 选中会话 /chatset chat_name
-chatfix - 修正会话  /chatfix  [context=this] #default is apply tg delete action
-_5 - 角色列表
-role - 显示角色prompt /role [name=this]
-rolelst - 显示列表 /rolelst
-roleset - 选中角色 /roleset [c1 c2 c3 = None]
-roleadd - 添加角色 /roleadd name description prompt
-roledel - 移除角色 /roledel name
-rolemod - 修改角色 /rolemod name [description [prompt]]
-_6 - 记忆列表
-mem - 显示记忆prompt /mem [name=this]
-memlst - 显示列表 /memlst
-memset - 选中记忆 /memset [c1 c2 c3 = None]
-memadd - 添加记忆 /memadd name description prompt
-memdel - 移除记忆 /memdel name
-memmod - 修改记忆 /memmod name [description [prompt]]
+start - start listening here /start
+reset - reset the group context /reset
+mode - multi AI forward mode /mode [forward|withcontext]
+ban - user to disable bots /ban username
+free - user unbanned /free username
+img - generate image /img prompt
+_2 - AI list (add required characters and memories)
+list - show AI list /list
+on - start AI /on [bot1 bot2 bot3 = *]
+off - turn off AI /off [bot1 bot2 bot3 = *]
+set - set active AI /set [bot1 bot2 bot3 = None]
+add - add AI /add name model cookie
+remove - remove AI /remove name
+mod - modify AI /mod name [model [cookie]]
+_3 - session functionality (autosave)
+save - save the context /save
+restore - restore context /restore [auto=False]
+warn - display model prompts for errors /warn
+search - show filtered search results /search [query='']
+auto - the robot runs automatically /auto [times=5]
+_4 - conversation list
+chat - show chat content /chat [name=this]
+chatlst - show list /chatlst
+chatadd - add conversation /chatadd name description [context=this]
+chatmod - modify session /chatmod name description [context=this]
+chatdel - delete conversation /chatdel chat_name
+chatset - Select conversation /chatset chat_name
+chatfix - fix session /chatfix [context=this] #default is apply tg delete action
+_5 - List of roles
+role - show role prompt /role [name=this]
+rolelst - show list /rolelst
+roleset - selected roles /roleset [c1 c2 c3 = None]
+roleadd - add a role /roleadd name description prompt
+roledel - remove role /roledel name
+rolemod - modify a role /rolemod name [description [prompt]]
+_6 - memory list
+mem - show memory prompt /mem [name=this]
+memlst - show list /memlst
+memset - selected memory /memset [c1 c2 c3 = None]
+memadd - add memory /memadd name description prompt
+memdel - remove memory /memdel name
+memmod - modify memory /memmod name [description [prompt]]
 ```
 ## build token count function (x86_64 linux version)
 ```bash
