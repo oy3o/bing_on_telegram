@@ -117,7 +117,7 @@ memadd - add memory /memadd name description prompt
 memdel - remove memory /memdel name
 memmod - modify memory /memmod name [description [prompt]]
 ```
-- * `list [update]` is after you manually modify the files in the folder, you can automatically update the list by adding the `update` parameter*
+- *`list [update]` is after you manually modify the files in the folder, you can automatically update the list by adding the `update` parameter*
 - *Why not scan files automatically? Because the names in the design should all be numbers for quick input, different files can be distinguished by entering descriptions, and automatic scanning cannot generate descriptions*
 
 ## build token count function (x86_64 linux version)
