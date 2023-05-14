@@ -1229,9 +1229,9 @@ class Bing(Model):
                         if messages[-1]['contentOrigin'] == 'Apology':
                             warn[self.chatid].append(tojson(messages[-1]))
                         else:
-                            suggest_reply = messages[-1].get('suggestedResponses')
-                            if suggest_reply:
-                                suggest_reply[self.chatid] = [suggestion['text'] for suggestion in suggest_reply]
+                            suggestions = messages[-1].get('suggestedResponses')
+                            if suggestions:
+                                suggest_reply[self.chatid] = [suggestion['text'] for suggestion in suggestions]
                     if item.get('result'):
                         result = item.get('result').get('message')
                 elif frame['type'] == 3:
