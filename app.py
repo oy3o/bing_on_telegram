@@ -5,7 +5,6 @@ from __future__ import annotations
 import time
 print(time.ctime(), 'dependencies importing...')
 from typing import List, Tuple
-import argparse
 import asyncio
 import certifi
 import copy
@@ -17,7 +16,6 @@ import pathlib
 import queue
 import random
 import re
-import signal
 import ssl
 import string
 import textwrap
@@ -25,8 +23,6 @@ import threading
 import traceback
 import uuid
 import websockets.client as websockets
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
-from telegram.ext import Application, MessageHandler, filters
 from telebot.util import extract_command, extract_arguments
 import tiktoken  # modified by oy3o to support count function in rust rather than convert to python
 import argostranslate.package
@@ -37,18 +33,19 @@ import argostranslate.translate
 # region ################################        System Settings             #############################################
 ##########################################################################################################################
 import config
-
 workspace = config.workspace
-admin = config.admin
-admin_name = config.admin_name
-bot_id = config.bot_id
-bot_name = config.bot_name
-bot_token = config.bot_token
+once = config.once
+lang = config.lang
 proxies = config.proxies
 bot_command_start = config.bot_command_start
 auto_mention = config.auto_mention
-once = config.once
-lang = config.lang
+
+bot_id = config.tg_bot_id
+bot_token = config.tg_bot_token
+bot_name = config.tg_bot_name
+admin_id = config.tg_admin_id
+admin_channel = config.tg_admin_channel
+admin_name = config.tg_admin_name
 # endregion
 ##########################################################################################################################
 # region ################################        System States               #############################################
@@ -59,17 +56,16 @@ withcontext = {}
 executors = {}
 Tasks = {}  # queue.Queue()
 Responses = queue.Queue()
-reply_markup = {}  # None
+suggest_reply = {}  # None
 warn = {}  # ''
 search = {}  # []
 auto = {}  # 0
 
-blacklist = None
-role = None
-mem = None
-AIs = None
-chat = None
-bot = None
+blacklist:Blacklist = None
+role:FileList = None
+mem:FileList = None
+AIs:AIS = None
+chat:Chat = None
 banning = []
 freeing = []
 # endregion
@@ -213,12 +209,14 @@ class AsyncTask(Task):
         response = None
         succeeded = False
         while times and not succeeded and not stop():
+            times -= 1
             try:
                 response = await self.do()
                 succeeded = True
             except Exception as e:
-                if onException:
+                if onException and not times:
                     onException(e)
+                    response = await self.do()
         return response
 
     def threading(self):
@@ -246,7 +244,7 @@ def doneQueue(tasks: List[Tuple[TaskID, AsyncTask | Task]]):
         yield done.get()
 
 # wait for system init
-isMessageExist = None
+isMessageExist = lambda :True
 log = None
 bot_send = None
 bot_stop = None
@@ -712,7 +710,7 @@ class Chat:
     def start(self, chatid):
         Tasks[chatid] = queue.Queue()
         withcontext[chatid] = False
-        reply_markup[chatid] = None
+        suggest_reply[chatid] = None
         warn[chatid] = []
         search[chatid] = []
         auto[chatid] = 0
@@ -776,11 +774,11 @@ class Chat:
 ##########################################################################################################################
 # region ################################        Bot Command Handler         #############################################
 ##########################################################################################################################
-async def bot_command(body, chatid=admin):
+async def bot_command(body, chatid=admin_channel, forward = None):
     func = extract_command(body)
     args_text = extract_arguments(body).strip()
     if func == 'img':
-        send(body, chatid, command=False)
+        send(body, chatid, forward, command=False)
         return
     exec = {}
     asyncExec = {}
@@ -792,9 +790,9 @@ async def bot_command(body, chatid=admin):
             response = await asyncExec[func](args_text)
         else:
             response = 'Unknown command, please use /help to view available commands'
-        Tasks[chatid].put((chatid, admin, 'bot command response', None, response))
+        Tasks[chatid].put((chatid, admin_id, 'bot command response', None, response, forward))
     except Exception as e:
-        await send(f'- command "{body}" exec failed -\n' + errString(e), chatid)
+        await send(f'- command "{body}" exec failed -\n' + errString(e), chatid, forward)
     await notify(chatid)
 
 # endregion
@@ -836,11 +834,11 @@ def free(usrname: str):
     freeing.append(usrname[1:] if usrname[0] == '@' else usrname)
     return f'- you can talk now @{usrname} -'
 
-async def command(body, chatid=admin):
+async def command(body, chatid=admin_channel, forward = None):
     func = extract_command(body)
     args_text = extract_arguments(body).strip()
     if func == 'say':
-        await send(split_first(args_text, ' '), chatid)
+        await send(split_first(args_text, ' '), chatid, forward)
         return
     exec = {
         'start': lambda _: start(chatid), 
@@ -895,25 +893,25 @@ async def command(body, chatid=admin):
             chat.start(chatid)
             start(chatid)
         if func in exec:
-            await send(exec[func](args_text), chatid, command=False)
+            await send(exec[func](args_text), chatid, forward, command=False)
         elif func in asyncExec:
-            await send(await asyncExec[func](args_text), chatid, command=False)
+            await send(await asyncExec[func](args_text), chatid, forward, command=False)
         else:
-            await send('- unexpected command -\n', chatid)
+            await send('- unexpected command -\n', chatid, forward)
     except Exception as e:
-        await send('- command exec failed -\n' + errString(e), chatid)
-    await notify(chatid)
+        await send('- command exec failed -\n' + errString(e), chatid, forward)
+    await notify(chatid, forward)
 
 # endregion
 ##########################################################################################################################
 # region ################################        Sending Message Handler     #############################################
 ##########################################################################################################################
-async def notify(chatid=admin):
+async def notify(chatid=admin_channel, forward = None):
     global errors
     if search[chatid]:
-        await send('- search result cached -', chatid)
+        await send('- search result cached -', chatid, forward)
     if warn[chatid]:
-        await send('- model warning -', chatid)
+        await send('- model warning -', chatid, forward)
     if errors:
         try:
             await send('- system errors -\n\n' + errors + '\n- errors report end -\n')
@@ -924,7 +922,7 @@ async def notify(chatid=admin):
         auto[chatid] -= 1
         Tasks[chatid].put(auto_mention)
 
-async def send(content: str or list[str], /, chatid: int = admin, *, command=True):
+async def send(content: str or list[str], /, chatid: int = admin_channel, forward = None, *, command=True):
     if not content:
         return
     if type(content) != list:
@@ -939,29 +937,25 @@ async def send(content: str or list[str], /, chatid: int = admin, *, command=Tru
             withname = False
 
         if command and msg.startswith(bot_command_start):
-            await bot_command(msg)
+            await bot_command(msg, chatid, forward)
             continue
         for part in textwrap.wrap(
             msg.replace(r'(\s*\n)+', '\n'), 4080, placeholder='', tabsize=4, break_long_words=False, break_on_hyphens=False, replace_whitespace=False, drop_whitespace=False):
             if part:
-                Responses.put((chatid, usrname, f'[{usrname}]{part}' if withname else part, reply_markup[chatid]))
+                Responses.put((chatid, usrname, f'[{usrname}]{part}' if withname else part, suggest_reply.get(chatid), forward))
 
 async def sender():
     while Running:
-        (chatid, usrname, msg, reply_markup) = Responses.get()
+        (chatid, usrname, msg, suggest_reply, forward) = Responses.get()
         if not msg:
             continue
-        try:
-            m = await AsyncTask(
-                bot_send, 
-                (chatid, msg), 
-                {'reply_markup': reply_markup, 'connect_timeout': 10}
-            ).retry(3)
-            if usrname:
-                chat.append((chatid, m.from_user.id, usrname, m.message_id, msg))
-        except Exception as e:
-            log(f'failed send: {msg}')
-            log(e)
+        msgid = await AsyncTask(
+            bot_send, 
+            (chatid, msg, forward), 
+            {'suggest_reply': suggest_reply, 'connect_timeout': 10}
+        ).retry(3, onException=lambda e:log(f'failed send: {msg}\n' + errString(e)))
+        if usrname:
+            chat.append((chatid, admin_id, usrname, msgid, msg))
 
 # endregion
 ##########################################################################################################################
@@ -975,7 +969,7 @@ async def update_edit(chatid, usrid, usrname, msgid, content):
     if banning and usrname in banning:
         blacklist.ban(usrid)
         return
-    if (usrid == admin) or content.startswith(bot_name):
+    if (usrid == admin_id) or content.startswith(bot_name):
         if not executors.get(chatid):
             return
         chat.updateMessage(chatid, msgid, content)
@@ -988,31 +982,30 @@ async def receive(chatid, usrid, usrname, msgid, content):
     if banning and usrname in banning:
         blacklist.ban(usrid)
         return
-    if (usrid == admin) or content.startswith(bot_name):
+    if (usrid == admin_id) or content.startswith(bot_name):
         if content.startswith('/'):
-            await command(content, chatid)
+            await command(content, chatid, msgid)
             return
         if not executors.get(chatid):
             return
         warn[chatid] = []
-        Tasks[chatid].put((chatid, usrid, usrname, msgid, content))
+        Tasks[chatid].put((chatid, usrid, usrname, msgid, content, msgid))
     elif content.startswith('/'):
-        await send('- unauthorized user, please do not do that -' if blacklist.once(usrid) else '- unauthorized user, you have been banned -', chatid)
+        await send('- unauthorized user, please do not do that -' if blacklist.once(usrid) else '- unauthorized user, you have been banned -', chatid, msgid)
 
 async def executor(chatid):
     global errors
     while Running:
-        (chatid, usrid, usrname, msgid, msg) = Tasks[chatid].get()
+        (chatid, usrid, usrname, msgid, msg, forward) = Tasks[chatid].get()
         if not msg:
             continue
-        reply_markup[chatid] = ReplyKeyboardRemove()
+        suggest_reply[chatid] = None
         if not msgid:
-            m = await bot_send(chatid, msg, reply_markup=reply_markup[chatid])
-            msgid = m.message_id
+            msgid = await bot_send(chatid, msg, forward, suggest_reply=suggest_reply[chatid])
         task = (chatid, usrid, usrname, msgid, msg)
         try:
             async for response in chat.send(task):
-                await AsyncTask(send,(response, chatid)).retry(3)
+                await AsyncTask(send,(response, chatid, forward)).retry(3)
         except Exception as e:
             errors += errString(e)
         await notify(chatid)
@@ -1236,13 +1229,9 @@ class Bing(Model):
                         if messages[-1]['contentOrigin'] == 'Apology':
                             warn[self.chatid].append(tojson(messages[-1]))
                         else:
-                            suggestions = messages[-1].get('suggestedResponses')
-                            if suggestions:
-                                reply_markup[self.chatid] = ReplyKeyboardMarkup(
-                                    [[suggestion['text']] for suggestion in suggestions],
-                                    resize_keyboard=True,
-                                    one_time_keyboard=True
-                                )
+                            suggest_reply = messages[-1].get('suggestedResponses')
+                            if suggest_reply:
+                                suggest_reply[self.chatid] = [suggestion['text'] for suggestion in suggest_reply]
                     if item.get('result'):
                         result = item.get('result').get('message')
                 elif frame['type'] == 3:
@@ -1278,10 +1267,10 @@ class Bing(Model):
         return chat_text
     @staticmethod
     def parse_message(usrid, usrname, msg):
-        return msg if usrid == admin else f'{Bing.parse_label(usrid, usrname)} {msg}'
+        return msg if usrid == admin_id else f'{Bing.parse_label(usrid, usrname)} {msg}'
     @staticmethod
     def parse_label(usrid, usrname):
-        if usrid == admin:
+        if usrid == admin_id:
             return f'[{admin_name}] '
         elif usrid == bot_id:
             return f'[{usrname}] '
@@ -1349,7 +1338,6 @@ class BardConversation:
             errors += f'- conversation create failed -\n{errString(e)}\n'
 
     def send(self, task):
-        print('send',task)
         global errors
         response = self.client.post(
             f'https://bard.google.com/_/BardChatUi/data/assistant.lamda.BardFrontendService/StreamGenerate',
@@ -1362,7 +1350,6 @@ class BardConversation:
         response = json.loads(payload)
         [self.conversation_id, self.response_id] = response[1]
         self.choice_id = response[4][0][0]
-        print('received',response[0])
         return ('\n'.join(response[0]), [suggestion[0] for suggestion in response[2]] if response[2] else [])
 
     def reset(self):
@@ -1409,15 +1396,11 @@ class Bard(Model):
         (chatid, usrid, usrname, msgid, msg) = task
         if withcontext:
             await self.reset()
-            (answer, suggestions) = self.conversation.send(trans2en(self.parse_chat(history_chat).replace('\n',';') + self.parse_message(usrid, usrname, msg).replace('\n',';')))
+            (answer, sugges) = self.conversation.send(trans2en(self.parse_chat(history_chat).replace('\n',';') + self.parse_message(usrid, usrname, msg).replace('\n',';')))
         else:
-            (answer, suggestions) = self.conversation.send(trans2en(self.parse_message(usrid, usrname, msg).replace('\n',';')))
-        if suggestions and (type(reply_markup[self.chatid]) == ReplyKeyboardRemove):
-            reply_markup[self.chatid] = ReplyKeyboardMarkup(
-                [suggestions],
-                resize_keyboard=True,
-                one_time_keyboard=True
-            )
+            (answer, sugges) = self.conversation.send(trans2en(self.parse_message(usrid, usrname, msg).replace('\n',';')))
+        if sugges and (type(suggest_reply[self.chatid]) == None):
+            suggest_reply[self.chatid] = sugges
         yield en2trans(answer)
 
     async def reset(self):
@@ -1438,10 +1421,10 @@ class Bard(Model):
         return chat_text
     @staticmethod
     def parse_message(usrid, usrname, msg):
-        return msg if usrid == admin else f'{Bard.parse_label(usrid, usrname)} {msg}'
+        return msg if usrid == admin_id else f'{Bard.parse_label(usrid, usrname)} {msg}'
     @staticmethod
     def parse_label(usrid, usrname):
-        if usrid == admin:
+        if usrid == admin_id:
             return f'[2022-02-22T00:00:01.999999+00:00] {admin_name}: '
         elif usrid == bot_id:
             return f'[2022-02-22T00:00:01.999999+00:00] {usrname}: '
@@ -1452,11 +1435,20 @@ class Bard(Model):
 ##########################################################################################################################
 # region ################################        System & Bot Initing        #############################################
 ##########################################################################################################################
-async def async_main(args: argparse.Namespace):
-    # init system
+def init():
+    # init files
+    base = config.workspace
+    mktree({f'{base}': ['role', 'chat', 'memory', 'cookie']})
+    trytouch(base + 'log.txt')
+    trytouch(base + 'AIs.json', '[]')
+    trytouch(base + 'blacklist.json', '[]')
+    trytouch(base + 'chat/list.json', '[]')
+    trytouch(base + 'role/list.json', '[]')
+    trytouch(base + 'memory/list.json', '[]')
+    trytouch(base + 'chat/state.json', '{}')
+
     print(time.ctime(), 'initing system...')
     global blacklist, role, mem, AIs, chat, log
-    base = args.workspace
     blacklist = Blacklist(base + 'blacklist.json')
     role = FileList(base, 'role')
     mem = FileList(base, 'memory')
@@ -1467,85 +1459,7 @@ async def async_main(args: argparse.Namespace):
     chat = Chat(base + 'chat/', AIs)
     log = Log(base + 'log.txt').log
 
-    # init bot
-    global bot, bot_id, bot_name, admin
-    app = Application.builder().token(args.token).build()
-    bot = app.bot
-    bot_id = (await bot.get_me()).id
-    bot_name = args.name
-    admin = args.admin
-    
-    global bot_send, bot_stop, isMessageExist
-    async def _bot_send(chatid, msg, *, reply_markup, connect_timeout):
-        return await bot.send_message(chatid, msg, reply_markup=reply_markup, connect_timeout=connect_timeout)   
-    async def _bot_stop():
-        os.kill(os.getpid(), signal.SIGINT)
-    async def _isMessageExist(messageid, chatid):
-        try:
-            m = await bot.forward_message(chatid, chatid, messageid, True)
-            await bot.delete_message(chatid, m.message_id)
-            return True
-        except:
-            return False
-    bot_send = _bot_send
-    bot_stop = _bot_stop
-    isMessageExist = _isMessageExist
-    
-    async def _update_edit(update, context):
-        message = update.message
-        chatid = message.chat.id
-        usrid = message.from_user.id
-        usrname = message.from_user.username
-        msgid = message.message_id
-        content = message.text
-        await update_edit(chatid, usrid, usrname, msgid, content)
-    async def _receive(update, context):
-        message = update.message
-        chatid = message.chat.id
-        usrid = message.from_user.id
-        usrname = message.from_user.username
-        msgid = message.message_id
-        content = message.text
-        await receive(chatid, usrid, usrname, msgid, content)
-    # start polling
-    app.add_handler(MessageHandler(filters.UpdateType.EDITED_MESSAGE, _update_edit))
-    app.add_handler(MessageHandler(filters.TEXT, _receive))
-    
     AsyncTask(sender).threading().start()
     AsyncTask(commandline).threading().start()
-    print(time.ctime(), 'AIs running on telegram bot...')
-    await command('/start')
-    await AsyncTask(app.run_polling).retry(stop=lambda: not Running, onException=log)
-    print(time.ctime(), 'app stop')
-# endregion
-##########################################################################################################################
-# region ################################        Terminal Config Parsing     #############################################
-##########################################################################################################################
-def main():
-    print(time.ctime(), 'loading arguments...')
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--admin', type=int, default=admin, help='Telegram_USER_ID(e.g. 123456789) ')
-    parser.add_argument('--name', type=str, default=bot_name, help='Telegram_BOT_NAME(e.g. @bot) ')
-    parser.add_argument('--token', type=str, default=bot_token, help='Telegram_BOT_TOKEN(e.g. 1234567890:AAGLTd921-abcdefhijklmno_pqrstuvwxy) ')
-    parser.add_argument('--workspace', type=str, default=workspace, help='full path where your bot save data in (e.g. /home/oy3o/bot/)')
-    args = parser.parse_args()
-    if not args.workspace.endswith('/'):
-        args.workspace += '/'
-
-    # init files
-    base = args.workspace
-    mktree({f'{base}': ['role', 'chat', 'memory', 'cookie']})
-    trytouch(base + 'log.txt')
-    trytouch(base + 'AIs.json', '[]')
-    trytouch(base + 'blacklist.json', '[]')
-    trytouch(base + 'chat/list.json', '[]')
-    trytouch(base + 'role/list.json', '[]')
-    trytouch(base + 'memory/list.json', '[]')
-    trytouch(base + 'chat/state.json', '{}')
-
-    asyncio.run(async_main(args))
-
-if __name__ == '__main__':
-    main()
 # endregion
 ##########################################################################################################################

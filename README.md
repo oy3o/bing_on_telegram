@@ -1,33 +1,40 @@
-# New Bing & Bard on Telegram with chat save
-*[简体中文](README-zh.md)*
+# Running New Bing & Bard on Telegram(or others e.g. QQ) can save chats at the same time
+Access to different artificial intelligences via Telegram. Since the model has token restrictions, the purpose of this project is to allow AI to remember more important memories, and provide the ability to play roles and save sessions.
 
-Access different AI through telegram. Since the model has token restrictions, the purpose of this project is to let AI remember more important memories, and provide the ability to play roles and save sessions.
+At present, it is possible to realize simultaneous dialogue between different AIs in the same chat window, more intelligent information segmentation, perfect error prompts and search display.
 
-At present, it is possible to realize simultaneous conversations between different AIs in the same chat window, more intelligent information segmentation, perfect error prompts and search display.
+If you want to use another platform's bot instead of telegram bot, you can do it in less than 50 lines of code (you can check the code of both telegram and QQ platforms).
 
-If you want to use a bot from another platform instead of the telegram bot, you can implement it by modifying less than 50 lines of code under the Bot Initing block.
+## configuration file`config.py`
+- `workspace`: `'/path/to/save/data'` where your data is stored
+- `once`: `True|False` Whether to enable a reply once, no longer intelligently split the answer of bing
+- `lang`: `'zh'|'ru'|...` google bar currently only supports English, you can set it to your favorite language, and the program will translate between you (the first time you need to download it, please wait)
+- `proxies`: `proxies = {'https://': 'http://127.0.0.1:1081'}` proxy, if your network condition is not good, you can configure the proxy format as
+- `bot_command_start`: `'/'` This is an idea, let Ai itself call the command, which can be used in image generation and other places
+- `auto_mention`: `'(auto response)'` is also an idea, let AI run automatically through automatic reply, give a task and let it run continuously, and then call the command to end by itself.
+- `bot_id | bot_token | admin_id | admin_channel`: These are obtained through the platform, please search for the telegram bot application and the qq robot application.
+- `bot_name`: only affects group chat, for example, `bot_name` can be set to `'hi'`, so that when a group friend's message starts with `'hi'`, it will be responded.
+- `admin_name`: just the name you saved in the file, it would be too strange if they are all called user, imagine your role is a lover, and then your messages all carry user.
 
-
-## run app
+## Run the application
 ```
+# enter to project directory
 pip install -r requirements.txt
-python -m app --workspace /path/to/save/ --token Telegram_BOT_TOKEN --name @botname --admin Telegram_USER_ID
+python -m tg # command to start telegram bot
+python -m qq # command to start QQ bot
 ```
-- you can edit `config.py`, then run `python -m app` without arguments.
-- you can also config your proxy in `config.py`
-- you can config`lang`to access bard without english such as `lang = 'zh'`
-- you can config`once`to received bing message in one message `once = True`
+*It should be noted that the api address of the qq robot is different from that in the test phase, it has been commented in qq.py, please modify it according to your needs*
 
-## start a bing bot
+## Run a normal Bing bot
 ```
-# put your cookie json in workspace/cookie/
-# then input command in telegram
-/add bot bing cookie.json
-/on bot
+# Put your cookie file in workspace/cookie/
+# Enter the code in Telegream
+/add set name bing cookie file name
+/on set name
 ```
-**You can start multiple AIs, even the same model with the same cookie**
-
-**It can be used in group chat, it needs to be set as an administrator, the name set by the prefix such as `@bot_name` can be responded, the administrator does not need**
+- *Currently supported AI `bing`, `bard`*
+- *You can start multiple AIs, even the same model with the same cookie*
+- *Can be used in group chat, need to be set as administrator*
 
 
 ## run bing with a roleplay
@@ -43,11 +50,9 @@ python -m app --workspace /path/to/save/ --token Telegram_BOT_TOKEN --name @botn
 # turn on ai
 /on ai_name
 ```
-**If there are many characters and memories, it is recommended to use number naming**
-
-**You can achieve a personalized experience by combining different characters and memories**
-
-**For example, the character can be student+sister+magic girl, and the memory can be historical+knowledge+what you have done**
+- *If there are many characters and memories, it is recommended to use number naming*
+- *You can personalize the experience by combining different characters and memories*
+- *For example, the character can be student+sister+magic girl, and the memory can be historical setting+related knowledge+what you have done*
 
 
 ## save and restore a chat
@@ -62,12 +67,11 @@ python -m app --workspace /path/to/save/ --token Telegram_BOT_TOKEN --name @botn
 # If there is an unexpected termination, it can be restored by /restore auto, because there is automatic saving)
 /restore 
 ```
-**In fact, you can open multiple chat channels to conduct multiple topics instead of just saving to the list**
+- *It is actually possible to have multiple threads by opening multiple chat channels instead of just saving to the list*
+- *The session will record the current AI enabled status and session context*
 
-**The session will record the current AI enabled status and session context**
 
-
-## command  in telegram 
+## command in chat
 ```
 _1 - group function
 start - start listening here /start
@@ -77,7 +81,7 @@ ban - user to disable bots /ban username
 free - user unbanned /free username
 img - generate image /img prompt
 _2 - AI list (add required characters and memories)
-list - show AI list /list
+list - show AI list /list [update]
 on - start AI /on [bot1 bot2 bot3 = *]
 off - turn off AI /off [bot1 bot2 bot3 = *]
 set - set active AI /set [bot1 bot2 bot3 = None]
@@ -113,7 +117,8 @@ memadd - add memory /memadd name description prompt
 memdel - remove memory /memdel name
 memmod - modify memory /memmod name [description [prompt]]
 ```
-
+- * `list [update]` is after you manually modify the files in the folder, you can automatically update the list by adding the `update` parameter*
+- *Why not scan files automatically? Because the names in the design should all be numbers for quick input, different files can be distinguished by entering descriptions, and automatic scanning cannot generate descriptions*
 
 ## build token count function (x86_64 linux version)
 ```bash
