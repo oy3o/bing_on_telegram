@@ -15,7 +15,8 @@ python -m app --workspace /path/to/save/ --token Telegram_BOT_TOKEN --name @botn
 ```
 - you can edit `config.py`, then run `python -m app` without arguments.
 - you can also config your proxy in `config.py`
-
+- you can config`lang`to access bard without english such as `lang = 'zh'`
+- you can config`once`to received bing message in one message `once = True`
 
 ## start a bing bot
 ```

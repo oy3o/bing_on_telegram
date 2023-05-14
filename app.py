@@ -48,6 +48,7 @@ proxies = config.proxies
 bot_command_start = config.bot_command_start
 auto_mention = config.auto_mention
 once = config.once
+lang = config.lang
 # endregion
 ##########################################################################################################################
 # region ################################        System States               #############################################
@@ -102,15 +103,15 @@ translate = argostranslate.translate.translate
 
 try:
     os.environ['ARGOS_DEVICE_TYPE'] = 'cuda'
-    translate('this app is cool', 'en', 'zh')
+    translate('this app is cool', 'en', lang)
 except:
     del os.environ['ARGOS_DEVICE_TYPE']
     print('WARN: run translate without CUDA')
 
-def zh2en(text:str) -> str:
-    return translate(text, 'zh', 'en')
-def en2zh(text:str) -> str:
-    return translate(text, 'en', 'zh')
+def trans2en(text:str) -> str:
+    return translate(text, lang, 'en')
+def en2trans(text:str) -> str:
+    return translate(text, 'en', lang)
 # endregion
 ##########################################################################################################################
 # region ################################        Helper Function             #############################################
@@ -1408,16 +1409,16 @@ class Bard(Model):
         (chatid, usrid, usrname, msgid, msg) = task
         if withcontext:
             await self.reset()
-            (answer, suggestions) = self.conversation.send(self.parse_chat(history_chat).replace('\n',';') + self.parse_message(usrid, usrname, msg).replace('\n',';'))
+            (answer, suggestions) = self.conversation.send(trans2en(self.parse_chat(history_chat).replace('\n',';') + self.parse_message(usrid, usrname, msg).replace('\n',';')))
         else:
-            (answer, suggestions) = self.conversation.send(zh2en(self.parse_message(usrid, usrname, msg).replace('\n',';')))
+            (answer, suggestions) = self.conversation.send(trans2en(self.parse_message(usrid, usrname, msg).replace('\n',';')))
         if suggestions and (type(reply_markup[self.chatid]) == ReplyKeyboardRemove):
             reply_markup[self.chatid] = ReplyKeyboardMarkup(
                 [suggestions],
                 resize_keyboard=True,
                 one_time_keyboard=True
             )
-        yield en2zh(answer)
+        yield en2trans(answer)
 
     async def reset(self):
         self.conversation.reset()

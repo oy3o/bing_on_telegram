@@ -11,3 +11,4 @@ proxies = {
 bot_command_start = '/'
 auto_mention = '(auto response)'
 once = False
+lang = 'zh'

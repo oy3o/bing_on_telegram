@@ -11,6 +11,8 @@ python -m app --workspace /path/to/save/ --token Telegram_BOT_TOKEN --name @botn
 ```
 - 您可以编辑 `config.py`，然后不带参数运行 `python -m app`。
 - 你也可以在 `config.py` 中配置你的代理
+- 您可以配置`lang`来访问 bard，而不是通过英语，例如 `lang = 'zh'`
+- 您可以配置`once`以在一条消息中接收 bing 消息 `once = True`
 
 ## 运行一个普通的 Bing 机器人
 ```
