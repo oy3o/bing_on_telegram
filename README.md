@@ -1,4 +1,6 @@
 # Running New Bing & Bard on Telegram(or others e.g. QQ) can save chats at the same time
+*[简体中文](README-zh.md)*
+
 Access to different artificial intelligences via Telegram. Since the model has token restrictions, the purpose of this project is to allow AI to remember more important memories, and provide the ability to play roles and save sessions.
 
 At present, it is possible to realize simultaneous dialogue between different AIs in the same chat window, more intelligent information segmentation, perfect error prompts and search display.
