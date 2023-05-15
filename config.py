@@ -3,8 +3,8 @@ once = False
 lang = 'zh'
 translators = { # edit varibale a and b in translator.py, then run python -m translator to find which endpoint can be use
     'zh': {
-        'from': ['translateCom','caiyun','sogou','iciba','baidu','youdao','lingvanex','itranslate'],
-        'to': ['papago','lingvanex','itranslate','sogou','modernMt','reverso','iciba','alibaba','caiyun','iflyrec','translateCom','youdao','translateMe']
+        'from': ['translateCom','caiyun','sogou','iciba','baidu','lingvanex','papago'],
+        'to': ['modernMt','iciba','lingvanex','iflyrec','translateCom','reverso','alibaba','itranslate','sogou','caiyun','papago','youdao']
     },
 }
 proxies = {
