@@ -1,6 +1,12 @@
 workspace = '/home/bot/data/'
 once = False
 lang = 'zh'
+translators = { # edit varibale a and b in translator.py, then run python -m translator to find which endpoint can be use
+    'zh': {
+        'from': ['translateCom','caiyun','sogou','iciba','baidu','youdao','lingvanex','itranslate'],
+        'to': ['papago','lingvanex','itranslate','sogou','modernMt','reverso','iciba','alibaba','caiyun','iflyrec','translateCom','youdao','translateMe']
+    },
+}
 proxies = {
     #'http://': 'http://127.0.0.1:1081',
     #'https://': 'http://127.0.0.1:1081',

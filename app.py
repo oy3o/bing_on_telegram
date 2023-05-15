@@ -25,6 +25,7 @@ import uuid
 import websockets.client as websockets
 from telebot.util import extract_command, extract_arguments
 import tiktoken  # modified by oy3o to support count function in rust rather than convert to python
+import translators
 import argostranslate.package
 import argostranslate.translate
 
@@ -36,6 +37,7 @@ import config
 workspace = config.workspace
 once = config.once
 lang = config.lang
+trans_endpoint = config.translators[lang]
 proxies = config.proxies
 bot_command_start = config.bot_command_start
 auto_mention = config.auto_mention
@@ -93,21 +95,28 @@ def img(prompt):
 
 # Download and install Argos Translate package
 argostranslate.package.update_package_index()
-argostranslate_to_install = next(filter(lambda x: (x.from_code == 'en' and x.to_code == 'zh') or (x.from_code == 'zh' and x.to_code == 'en'), argostranslate.package.get_available_packages()))
+argostranslate_to_install = next(filter(lambda x: (x.from_code == 'en' and x.to_code == lang) or (x.from_code == lang and x.to_code == 'en'), argostranslate.package.get_available_packages()))
 argostranslate.package.install_from_path(argostranslate_to_install.download())
-translate = argostranslate.translate.translate
+offline_translate = argostranslate.translate.translate
 
 try:
     os.environ['ARGOS_DEVICE_TYPE'] = 'cuda'
-    translate('this app is cool', 'en', lang)
+    offline_translate('this app is cool', 'en', lang)
 except:
     del os.environ['ARGOS_DEVICE_TYPE']
-    print('WARN: run translate without CUDA')
+    print('WARN: run offline translate without CUDA')
 
+api_translate = lambda *args: translators.translate_text(*args, timeout = 5, proxies = proxies)
 def trans2en(text:str) -> str:
-    return translate(text, lang, 'en')
+    try:
+        return downgrade(api_translate, [((text, end, lang, 'en'),) for end in trans_endpoint['from']])
+    except:
+        return offline_translate(text, lang, 'en')
 def en2trans(text:str) -> str:
-    return translate(text, 'en', lang)
+    try:
+        return downgrade(api_translate, [((text, end, 'en', lang),) for end in trans_endpoint['to']])
+    except:
+        return offline_translate(text, 'en', lang)
 # endregion
 ##########################################################################################################################
 # region ################################        Helper Function             #############################################
@@ -165,7 +174,7 @@ def split_first(args_text, spliter):
         return (args_text, '')
 
 def split_message(msg):
-    if len(msg) > 64:
+    if len(msg) > 96:
         indices = [index.start() for index in re.finditer(pattern=rf'\n|主人~|”|。|？|！|"|\.|\?|\!|:|;|：|；', string=msg)]
         if not indices:
             indices = [index.start() for index in re.finditer(pattern=rf'~|，|,|\)|）|╯|<|{emoji}', string=msg)]
@@ -189,14 +198,21 @@ class Task:
         response = None
         succeeded = False
         while times and not succeeded and not stop():
+            times -= 1
             try:
                 response = self.do()
                 succeeded = True
             except Exception as e:
-                if onException:
+                if onException and not times:
                     onException(e)
-                continue
+                    response = self.do()
         return response
+
+    def catch(self, func = lambda e: None):
+        try:
+            return self.do()
+        except Exception as e:
+            return func(e)
 
     def threading(self):
         return threading.Thread(self.do)
@@ -219,6 +235,11 @@ class AsyncTask(Task):
                     response = await self.do()
         return response
 
+    async def catch(self, func = lambda e: None):
+        try:
+            return await self.do()
+        except Exception as e:
+            return func(e)
     def threading(self):
         def task():
             asyncio.run(self.do())
@@ -242,6 +263,15 @@ def doneQueue(tasks: List[Tuple[TaskID, AsyncTask | Task]]):
         thread.start()
     for _ in range(len(tasks)):
         yield done.get()
+
+def downgrade(func, argslist: List[Tuple[tuple,dict]]):
+    for _args in argslist:
+        try:
+            (args, kwargs, *_) = (*_args, {})
+            return func(*args,**kwargs)
+        except:
+            continue
+    raise 'all downgrade failed'
 
 # wait for system init
 isMessageExist = lambda :True
@@ -436,10 +466,10 @@ class AIS:
         except Exception as e:
             return f'- AI list failed -\n{errString(e)}'
 
-    def on(self, chatid, ns='*'):
+    def on(self, chatid, ns='*' or ['*']):
         global errors
         response = ''
-        ns = [ai['name'] for ai in self._list] if not ns or (ns == '*') else re.split(r'\s+', ns)
+        ns = ns if type(ns) == list else ([ai['name'] for ai in self._list] if not ns or (ns == '*') else re.split(r'\s+', ns))
         for name in ns:
             try:
                 ai = next(filter(lambda t: t['name'] == name, self._list))
@@ -451,12 +481,13 @@ class AIS:
                 errors += f'- AI({name}) turn on failed -\n{errString(e)}\n'
         return response
 
-    def off(self, chatid, ns='*'):
+    def off(self, chatid, ns='*' or ['*']):
         global errors
         response = ''
-        ns = list(self._active[chatid].keys()) if not ns or (ns == '*') else re.split(r'\s+', ns)
+        ns = ns if type(ns) == list else (list(self._active[chatid].keys()) if not ns or (ns == '*') else re.split(r'\s+', ns))
         for name in ns:
             try:
+                self._active[chatid][name] = None
                 del self._active[chatid][name]
                 response += f'- AI({name}) turn off successed -\n'
             except Exception as e:
@@ -467,13 +498,7 @@ class AIS:
     def set(self, chatid, ns):
         try:
             wait = ns.split() if type(ns) == str else ns
-            for ai in self._active[chatid]:
-                if not ai in wait:
-                    self.off(chatid, ai)
-            for ai in wait:
-                if not ai in self._active[chatid]:
-                    self.on(chatid, ai)
-            return f'- AI set successed -'
+            return '\n'.join([self.off(chatid, ai) for ai in self._active[chatid] if not ai in wait] + [self.on(chatid, ai) for ai in wait if not ai in self._active[chatid]])
         except Exception as e:
             return f'- AI set failed -\n{errString(e)}'
 
@@ -544,7 +569,7 @@ class AIS:
             self._active[chatid] = {}
         try:
             running = len(self._active[chatid].keys())
-            if once or running > 1:#()
+            if once or running > 1:
                 (chatid, usrid, usrname, msgid, msg) = task
                 for response in doneQueue([
                     (ai, AsyncTask(self._exec, (
@@ -597,18 +622,17 @@ class Chat:
 
     def set(self, chatid, name):
         try:
+            if not name:
+                self._AIs.off(chatid)
+                self._active[chatid] = {}
+                self._context[chatid] = []
+                self._messages[chatid] = []
             target = next(filter(lambda t: t['name'] == name, self._list))
             if not target:
                 return '- target chat not exist -'
 
-            if self._active[chatid]:
-                for ai in self._active[chatid]['members']:
-                    if not ai in target['members']:
-                        self._AIs.off(chatid, ai)
-            for ai in target['members']:
-                if not self._active[chatid] or (not ai in self._active[chatid]['members']):
-                    self._AIs.on(chatid, ai)
-
+            self._AIs.off(chatid)
+            self._AIs.on(chatid, target['members'])
             self._active[chatid] = target
             self._context[chatid] = json.loads(read_file(self._chat + target['name']))
             self._messages[chatid] = []
@@ -746,7 +770,7 @@ class Chat:
             if not state:
                 return '- no chat state for restore -'
             self._AIs.off(chatid)
-            self._AIs.on(chatid, ' '.join(state['_active']))
+            self._AIs.on(chatid, state['_active'])
             self._context[chatid] = state['_context']
             self._messages[chatid] = state['_messages']
             self._prelen[chatid] = state['_prelen']
@@ -821,6 +845,8 @@ def mode(chatid, type = 'forward'):
         withcontext[chatid] = True
     else:
         withcontext[chatid] = False
+    m = 'withcontext' if withcontext[chatid] else 'forward'
+    return f'- current mode: {m} -'
 
 def ban(usrname: str):
     if not usrname:
@@ -1155,10 +1181,11 @@ class Bing(Model):
         self.wss = None
         self.invocation_max = 0
         self.invocation_id = 0
+        self.warn_times = 0
 
     async def exec(self, task, history_chat, *, withcontext=False, split=False):
         await self.close()
-        if withcontext or (self.invocation_id == self.invocation_max):
+        if withcontext or (self.invocation_id == self.invocation_max) or (self.warn_times == 3):
             await self.reset()
         self.wss = await AsyncTask(
             websockets.connect, 
@@ -1227,6 +1254,7 @@ class Bing(Model):
                     messages = item.get('messages')
                     if messages:
                         if messages[-1]['contentOrigin'] == 'Apology':
+                            self.warn_times += 1
                             warn[self.chatid].append(tojson(messages[-1]))
                         else:
                             suggestions = messages[-1].get('suggestedResponses')
@@ -1251,6 +1279,7 @@ class Bing(Model):
         self.conversation.reset()
         self.invocation_max = 20
         self.invocation_id = 0
+        self.warn_times = 0
 
     @staticmethod
     def expire(cookie):

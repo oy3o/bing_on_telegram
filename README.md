@@ -11,6 +11,7 @@ If you want to use another platform's bot instead of telegram bot, you can do it
 - `workspace`: `'/path/to/save/data'` where your data is stored
 - `once`: `True|False` Whether to enable a reply once, no longer intelligently split the answer of bing
 - `lang`: `'zh'|'ru'|...` google bar currently only supports English, you can set it to your favorite language, and the program will translate between you (the first time you need to download it, please wait)
+- `translator`: `{'zh':{ 'from': [...], 'to': [...] }}` To use the online API service, you can run `python -m translator` to To judge the speed and effect of the API, if you need to use your own test statements such as other languages, please modify the values of `a` and `b` in `translator.py` by yourself. Tests are sorted by responsiveness.
 - `proxies`: `proxies = {'https://': 'http://127.0.0.1:1081'}` proxy, if your network condition is not good, you can configure the proxy format as
 - `bot_command_start`: `'/'` This is an idea, let Ai itself call the command, which can be used in image generation and other places
 - `auto_mention`: `'(auto response)'` is also an idea, let AI run automatically through automatic reply, give a task and let it run continuously, and then call the command to end by itself.

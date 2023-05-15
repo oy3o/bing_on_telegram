@@ -1,7 +1,9 @@
-certifi==2022.12.7
-httpx==0.24.0
-nest_asyncio==1.5.6
-pyTelegramBotAPI==4.11.0
-python-telegram-bot==20.3
-tiktoken==0.3.3
-websockets==11.0.2
+certifi
+httpx
+nest_asyncio
+pyTelegramBotAPI
+python-telegram-bot
+tiktoken
+websockets
+translators
+argostranslate
