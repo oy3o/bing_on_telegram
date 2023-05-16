@@ -1316,7 +1316,7 @@ BardRequestHeader = {
     'Origin': 'https://bard.google.com', 
     'authority': 'bard.google.com', 
     'accept': '*/*', 
-    'accept-language': 'en,zh-CN;q=0.9,zh;q=0.8', 
+    'accept-language': 'en', 
     'cache-control': 'no-cache', 
     'pragma': 'no-cache', 
     'referrer': 'https://bard.google.com/', 
@@ -1391,7 +1391,7 @@ class BardConversation:
         )
         for c in self.cookie:
             self.client.cookies.set(c['name'], c['value'])
-        response = self.client.get('https://bard.google.com/')
+        response = self.client.get('https://bard.google.com/?hl=en')
         if response.status_code != 200:
             errors += f'- can not access "https://bard.google.com/" -\nStatus code: {response.status_code}\n{response.text}\n'
             return
